@@ -26,12 +26,12 @@ function test_construct_simple_datasource()
 	assertObjectEquals({id: 1, name: 'John'}, ds.get(0));
 	assertObjectEquals({id: 2, name: 'James'}, ds.get(1));
 	assertObjectEquals({id: 5, name: 'Peter'}, ds.get(2));
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.get(-1);});
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.get(3);});
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.get(-1);},
+		"Wrong kind of exception for access out of bounds");
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.get(3);},
+		"Wrong kind of exception for access out of bounds");
 }
 
 function test_simple_datasource_add()
@@ -60,12 +60,12 @@ function test_simple_datasource_insert()
 	n.name = "cruel";
 	assertEquals("changes to objects should not affect inserted data",
 		"world", ds.get(1).name);
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.insert(-1, n);});
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.insert(5, n);});
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.insert(-1, n);},
+		"Wrong kind of exception for access out of bounds");
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.insert(5, n);},
+		"Wrong kind of exception for access out of bounds");
 
 	ds.insert(4, n);
 	assertEquals(5, ds.getCount());
@@ -90,12 +90,12 @@ function test_simple_datasource_replace()
 	n.name = "cruel";
 	assertEquals("changes to objects should not affect inserted data",
 		"world", ds.get(1).name);
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.replace(-1, n);});
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.replace(3, n);});
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.replace(-1, n);},
+		"Wrong kind of exception for access out of bounds");
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.replace(3, n);},
+		"Wrong kind of exception for access out of bounds");
 }
 
 function test_simple_datasource_remove()
@@ -107,11 +107,11 @@ function test_simple_datasource_remove()
 		2, ds.getCount());
 	assertObjectEquals({id: 1, name: 'John'}, ds.get(0));
 	assertObjectEquals({id: 5, name: 'Peter'}, ds.get(1));
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.remove(-1);});
-	com.qwirx.test.assertThrows("Wrong kind of exception for access " +
-		"out of bounds", com.qwirx.data.NoSuchRecord,
-		function(){ds.remove(2);});
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.remove(-1);},
+		"Wrong kind of exception for access out of bounds");
+	com.qwirx.test.assertThrows(com.qwirx.data.NoSuchRecord,
+		function(){ds.remove(2);},
+		"Wrong kind of exception for access out of bounds");
 }
 
