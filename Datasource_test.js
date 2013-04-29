@@ -52,7 +52,13 @@ function test_simple_datasource_insert()
 	var ds = getTestDataSource();
 	var n = {id: "hello", name: "world", extra: "whee"};
 	assertEquals(3, ds.getCount());
-	ds.insert(1, n);
+	
+	com.qwirx.test.assertEvents(ds,
+		[com.qwirx.data.Datasource.Events.ROW_COUNT_CHANGE,
+		com.qwirx.data.Datasource.Events.ROWS_INSERT],
+		function() { ds.insert(1, n); },
+		"DataSource.insert() did not fire the expected events");
+	
 	assertEquals(4, ds.getCount());
 	assertObjectEquals({id: 1, name: 'John'}, ds.get(0));
 	assertObjectEquals(n, ds.get(1));

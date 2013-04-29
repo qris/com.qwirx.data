@@ -165,6 +165,8 @@ com.qwirx.data.SimpleDatasource.prototype.insert =
 	this.data_.splice(rowIndex, 0, goog.object.clone(newRecord));
 	this.dispatchEvent(new com.qwirx.data.Datasource.RowEvent(
 		com.qwirx.data.Datasource.Events.ROWS_INSERT, [rowIndex]));
+	this.dispatchEvent(new com.qwirx.data.Datasource.RowEvent(
+		com.qwirx.data.Datasource.Events.ROW_COUNT_CHANGE, this.data_.length));
 };
 
 /**
