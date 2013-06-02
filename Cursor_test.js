@@ -173,3 +173,26 @@ function test_cursor_new_record_creation()
 	assertEquals('bar', c.getCurrentValues().name);
 }
 
+/**
+ * Inserting a row before the current position should change it.
+ */
+function test_cursor_positioning_after_insert()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	var n = {id: "hello", name: "world"};
+	
+	c.setPosition(2);
+	ds.insert(3, n);
+	assertEquals("inserting a row after the current position should not " +
+		"have changed it", 2, c.getPosition());
+	ds.insert(2, n);
+	assertEquals("inserting a row before the current position should " +
+		"have changed it", 3, c.getPosition());
+	ds.insert(1, n);
+	assertEquals("inserting a row before the current position should " +
+		"have changed it", 4, c.getPosition());
+	ds.insert(0, n);
+	assertEquals("inserting a row before the current position should " +
+		"have changed it", 5, c.getPosition());
+}

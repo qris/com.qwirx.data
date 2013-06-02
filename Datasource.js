@@ -8,12 +8,12 @@ goog.require('goog.events.EventTarget');
 goog.require('com.qwirx.util.Enum');
 
 /**
- * @constructor
- * An exception thrown by {com.qwirx.data.Datasource.prototype.getRow}
+ * An exception thrown by {@link com.qwirx.data.Datasource#getRow}
  * if the requested row could not be retrieved because it definitely
  * does not exist in the datasource. For example, if you request a row
  * index less than zero, or more than the number of rows in the
  * data source.
+ * @constructor
  */
 com.qwirx.data.NoSuchRecord = function(message)
 {

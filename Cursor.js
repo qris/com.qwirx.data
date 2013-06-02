@@ -85,6 +85,11 @@ com.qwirx.data.Cursor = function(dataSource, opt_accessMode)
 {
 	this.dataSource_ = dataSource;
 	this.position_ = com.qwirx.data.Cursor.BOF;
+	
+	dataSource.addEventListener(
+		com.qwirx.data.Datasource.Events.ROWS_INSERT,
+		this.handleDataSourceRowInsert, false /* capture */, 
+		this /* scope */);
 };
 goog.inherits(com.qwirx.data.Cursor, goog.events.EventTarget);
 
@@ -131,9 +136,11 @@ com.qwirx.data.Cursor.prototype.getRowCount = function()
 
 /**
  * @return the current position, which is an integer between 0 and
- * {#getRowCount}() - 1, unless the row count is unknown (null), in
- * which case there is no upper bound; or one of the constants
- * {#BOF}, {#EOF} or {#NEW}.
+ * {com.qwirx.data.Cursor#getRowCount}() - 1, unless the row count is
+ * unknown (null), in which case there is no upper bound; or one of the
+ * constants
+ * {com.qwirx.data.Cursor.BOF}, {com.qwirx.data.Cursor.EOF} or
+ * {com.qwirx.data.Cursor.NEW}.
  */
 com.qwirx.data.Cursor.prototype.getPosition = function()
 {
@@ -142,9 +149,10 @@ com.qwirx.data.Cursor.prototype.getPosition = function()
 
 /**
  * @param newPosition the new position, which is an integer between
- * 0 and {#getRowCount}() - 1, unless the row count is unknown (null),
- * in which case there is no upper bound; or one of the constants
- * {#BOF}, {#EOF} or {#NEW}. Setting the position to any other value
+ * 0 and {com.qwirx.data.Cursor#getRowCount}() - 1, unless the row count is
+ * unknown (null), in which case there is no upper bound; or one of the
+ * constants {com.qwirx.data.Cursor.BOF}, {com.qwirx.data.Cursor.EOF} or
+ * {com.qwirx.data.Cursor.NEW}. Setting the position to any other value
  * will throw an exception.
  *
  * This method calls {com.qwirx.data.Cursor.prototype.maybeDiscard}
@@ -447,10 +455,42 @@ com.qwirx.data.Cursor.prototype.moveLast = function()
 };
 
 /**
- * @constructor
- * An exception thrown by {com.qwirx.data.Cursor.prototype.setFieldValue}
+ * Handle an event from the datasource saying that a row has been inserted,
+ * by updating our position if necessary to stay on the same row.
+ */
+com.qwirx.data.Cursor.prototype.handleDataSourceRowInsert = function(event)
+{
+	var affected = event.getAffectedRows();
+	var oldPosition = this.position_;
+	var newPosition = oldPosition;
+	
+	for (var i = 0; i < affected.length; i++)
+	{
+		var rowIndex = affected[i];
+		if (rowIndex <= newPosition)
+		{
+			newPosition++;
+		}
+	}
+	
+	if (newPosition != oldPosition)
+	{
+		// don't discard data being edited, as would happen if we called
+		// setPosition(), because there's no need.
+		
+		this.dispatchEvent({
+			type: com.qwirx.data.Cursor.Events.MOVE_TO,
+			newPosition: newPosition
+			});
+		this.position_ = newPosition;
+	}
+};
+
+/**
+ * An exception thrown by {@link com.qwirx.data.Cursor#setFieldValue}
  * if there is no current record, because the cursor is positioned at
  * {com.qwirx.data.Cursor.BOF} or {com.qwirx.data.Cursor.EOF}.
+ * @constructor
  */
 com.qwirx.data.NoCurrentRecord = function(message)
 {
@@ -458,10 +498,10 @@ com.qwirx.data.NoCurrentRecord = function(message)
 };
 
 /**
- * @constructor
- * An exception thrown by {com.qwirx.data.Cursor.prototype.setFieldValue}
+ * An exception thrown by {@link com.qwirx.data.Cursor#setFieldValue}
  * if the specified field name is not a valid field/column for this
  * cursor.
+ * @constructor
  */
 com.qwirx.data.NoSuchField = function(message)
 {
@@ -518,9 +558,9 @@ com.qwirx.data.Cursor.prototype.setFieldValue = function(fieldName,
 };
 
 /**
- * @constructor
  * A generic exception superclass for illegal or blocked cursor
  * movement attempts.
+ * @constructor
  */
 com.qwirx.data.CursorMovementException = function(message)
 {
@@ -531,11 +571,11 @@ goog.inherits(com.qwirx.data.CursorMovementException,
 	com.qwirx.util.Exception);
 
 /**
- * @constructor
  * An exception response to an illegal movement attempt,
  * such as moving to the previous record from BOF or the next record
  * from EOF, which is never allowed and should not be offered to the
  * user.
+ * @constructor
  */
 com.qwirx.data.IllegalMove = function(message)
 {
@@ -545,11 +585,11 @@ goog.inherits(com.qwirx.data.IllegalMove,
 	com.qwirx.data.CursorMovementException);
 
 /**
- * @constructor
  * An exception response to a movement attempt which is blocked by
  * a {com.qwirx.data.Cursor.Events.BEFORE_DISCARD} event handler
  * cancelling the event, perhaps because the user has unsaved changes
  * that they wish not to discard yet.
+ * @constructor
  */
 com.qwirx.data.DiscardBlocked = function(message)
 {
