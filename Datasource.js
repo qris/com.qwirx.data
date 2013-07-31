@@ -196,7 +196,7 @@ com.qwirx.data.SimpleDatasource.prototype.add = function(newRecord)
  * [rowIndex] as the event data.
  *
  * @param {number} rowIndex The row index to replace/overwrite.
- * {com.qwirx.data.SimpleDatasource.prototype.getRow}(rowIndex) will
+ * {com.qwirx.data.SimpleDatasource.prototype.get}(rowIndex) will
  * return the data just inserted. Other rows will be unaffected.
  *
  * @param {!Object} newRecord The values for the new record, which
