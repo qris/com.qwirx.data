@@ -601,7 +601,7 @@ goog.inherits(com.qwirx.data.IllegalMove,
 
 /**
  * An exception response to a movement attempt which is blocked by
- * a {com.qwirx.data.Cursor.Events.BEFORE_DISCARD} event handler
+ * a {@link com.qwirx.data.Cursor.Events.BEFORE_DISCARD} event handler
  * cancelling the event, perhaps because the user has unsaved changes
  * that they wish not to discard yet.
  * @constructor
