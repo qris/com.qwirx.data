@@ -455,6 +455,21 @@ com.qwirx.data.Cursor.prototype.moveLast = function()
 };
 
 /**
+ * Move to a new, blank row at the end of the data.
+ */
+com.qwirx.data.Cursor.prototype.moveNew = function()
+{
+	var newPosition = com.qwirx.data.Cursor.NEW;
+
+	this.dispatchEvent({
+		type: com.qwirx.data.Cursor.Events.CREATE_NEW,
+		newPosition: newPosition
+		});
+
+	this.setPosition(newPosition);
+};
+
+/**
  * Handle an event from the datasource saying that a row has been inserted,
  * by updating our position if necessary to stay on the same row.
  */
