@@ -171,10 +171,10 @@ com.qwirx.data.Cursor.prototype.getPosition = function()
  * {com.qwirx.data.Cursor.NEW}. Setting the position to any other value
  * will throw an exception.
  *
- * This method calls {com.qwirx.data.Cursor.prototype.maybeDiscard}
+ * This method calls {@link com.qwirx.data.Cursor.prototype.maybeDiscard}
  * before changing the position, which will throw an exception if
  * the current record is dirty and an event handler blocks the
- * {com.qwirx.data.Cursor.Events.BEFORE_DISCARD} event. This cancels
+ * {@link com.qwirx.data.Cursor.Events.BEFORE_DISCARD} event. This cancels
  * the change in position.
  *
  * The new record may not be retrieved immediately, depending on who's
