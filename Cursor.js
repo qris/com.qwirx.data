@@ -190,7 +190,12 @@ com.qwirx.data.Cursor.prototype.getPosition = function()
  */
 com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 {
-	this.maybeDiscard();
+	// Don't discard anything if we're moving to the same row that we're
+	// already on.
+	if (newPosition != this.getPosition() && !this.maybeDiscard())
+	{
+		return;
+	}
 
 	var rowCount = this.getRowCount();
 	
@@ -424,7 +429,10 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
  */
 com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 {
-	this.maybeDiscard();
+	if (!this.maybeDiscard())
+	{
+		return;
+	}
 
 	var newPosition = this.position_;
 	var rowCount = this.getRowCount();
