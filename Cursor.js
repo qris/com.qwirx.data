@@ -310,29 +310,97 @@ com.qwirx.data.Cursor.prototype.isDirty = function()
  * requeried in case the record has changed, unless you explicitly
  * call {#reload} (in which case you don't need to call this function,
  * because {#reload} can do it for you).
+ * 
+ * @return true if the record can be discarded, false otherwise (if it
+ * should not be discarded, but no exception was thrown).
  *
  * @throws {com.qwirx.data.DiscardBlocked} if a BEFORE_DISCARD event
- * was sent and cancelled by an event listener.
+ * was sent and cancelled by an event listener, without calling
+ * event.preventDefault().
+ * 
+ * @param {integer=} opt_newPosition Will be stored in the BEFORE_DISCARD
+ * and DISCARD events sent by the Cursor. If set, this would mean that we're
+ * discarding changes in the process of navigating somewhere. In the case of
+ * BEFORE_DISCARD, this allows the signal handler to prompt the user for
+ * action, and later resume the requested navigation.
  */
-com.qwirx.data.Cursor.prototype.maybeDiscard = function()
+com.qwirx.data.Cursor.prototype.maybeDiscard = function(opt_newPosition)
 {
+	if (this.isDirty())
+	{
+		this.assertCurrentRecord();
+	}
+	else
+	{
+		return true; // OK to move
+	}
+	
+	var event = new com.qwirx.data.Cursor.Event(
+		com.qwirx.data.Cursor.Events.BEFORE_DISCARD,
+		opt_newPosition);
+	var cancelled = !this.dispatchEvent(event);
+	
+	if (cancelled)
+	{
+		// com.qwirx.grid.Grid.prototype.handleDirtyMovement and other
+		// Cursor users may need to prevent this exception being thrown,
+		// if they plan to collect information (e.g. prompt the user)
+		// and retry the movement later. We check whether the event
+		// has preventDefault set and if so, don't throw an exception,
+		// but return false instead. So callers must check for that
+		// and not continue with the movement!
+		
+		if (event.defaultPrevented)
+		{
+			return false;
+		}
+		else
+		{
+			throw new com.qwirx.data.DiscardBlocked("The cursor points " +
+				"to modified data, and the BEFORE_DISCARD event was " +
+				"cancelled, so the cursor cannot be moved.");
+		}
+	}
+	
+	this.discard();
+	return true;
+};
+
+/**
+ * If the field values have not been changed (the current record is
+ * not dirty) then this function does nothing.
+ *
+ * Otherwise it forces the current (modified) values to be discarded,
+ * and fires a {com.qwirx.data.Cursor.Events.DISCARD} event, which cannot
+ * be cancelled. The current record values are reset to their original
+ * values when the current record was loaded. The database is not
+ * requeried in case the record has changed, unless you explicitly
+ * call {#reload} (in which case you don't need to call this function,
+ * because {#reload} can do it for you).
+ * 
+ * @param {integer=} opt_newPosition Will be stored in the DISCARD event
+ * sent by the Cursor to itself. If set, this would mean that we're
+ * discarding changes in the process of navigating somewhere.
+ */
+com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
+{
+	this.assertCurrentRecord();
+	
 	if (!this.isDirty())
 	{
 		return;
 	}
 	
-	var cancelled = !this.dispatchEvent({
-		type: com.qwirx.data.Cursor.Events.BEFORE_DISCARD
-		});
-	
-	if (cancelled)
-	{
-		throw new com.qwirx.data.DiscardBlocked("The cursor points " +
-			"to modified data, and the BEFORE_DISCARD event was " +
-			"cancelled, so the cursor cannot be moved.");
-	}
-	
 	this.currentRecordValues_ = this.currentRecordAsLoaded_;
+	this.dispatchEvent(
+		new com.qwirx.data.Cursor.Event(
+			com.qwirx.data.Cursor.Events.DISCARD,
+			opt_newPosition));
+	
+	if (this.getPosition() == com.qwirx.data.Cursor.NEW)
+	{
+		this.setPosition(this.getRowCount() - 1);
+	}
 };
 
 /**
