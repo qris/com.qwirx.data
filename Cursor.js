@@ -593,6 +593,7 @@ com.qwirx.data.Cursor.prototype.handleDataSourceRowInsert = function(event)
  */
 com.qwirx.data.NoCurrentRecord = function(message)
 {
+	goog.base(this, message);
 	this.message = message;
 };
 goog.inherits(com.qwirx.data.NoCurrentRecord, com.qwirx.util.Exception);
@@ -605,6 +606,7 @@ goog.inherits(com.qwirx.data.NoCurrentRecord, com.qwirx.util.Exception);
  */
 com.qwirx.data.NoSuchField = function(message)
 {
+	goog.base(this, message);
 	this.message = message;
 };
 goog.inherits(com.qwirx.data.NoSuchField, com.qwirx.util.Exception);
@@ -665,7 +667,7 @@ com.qwirx.data.Cursor.prototype.setFieldValue = function(fieldName,
  */
 com.qwirx.data.CursorMovementException = function(message)
 {
-	com.qwirx.util.Exception.call(this, message);
+	goog.base(this, message);
 };
 goog.require('com.qwirx.util.Exception');
 goog.inherits(com.qwirx.data.CursorMovementException,
@@ -680,7 +682,7 @@ goog.inherits(com.qwirx.data.CursorMovementException,
  */
 com.qwirx.data.IllegalMove = function(message)
 {
-	com.qwirx.data.CursorMovementException.call(this, message);
+	goog.base(this, message);
 };
 goog.inherits(com.qwirx.data.IllegalMove,
 	com.qwirx.data.CursorMovementException);
