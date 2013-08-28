@@ -595,6 +595,7 @@ com.qwirx.data.NoCurrentRecord = function(message)
 {
 	this.message = message;
 };
+goog.inherits(com.qwirx.data.NoCurrentRecord, com.qwirx.util.Exception);
 
 /**
  * An exception thrown by {@link com.qwirx.data.Cursor#setFieldValue}
@@ -606,6 +607,7 @@ com.qwirx.data.NoSuchField = function(message)
 {
 	this.message = message;
 };
+goog.inherits(com.qwirx.data.NoSuchField, com.qwirx.util.Exception);
 
 com.qwirx.data.Cursor.prototype.assertCurrentRecord = function()
 {
