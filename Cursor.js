@@ -122,8 +122,24 @@ com.qwirx.data.Cursor.NEW = "NEW";
 com.qwirx.data.Cursor.Events = new com.qwirx.util.Enum(
 	'MOVE_FIRST', 'MOVE_BACKWARD', 'MOVE_FORWARD', 'MOVE_LAST',
 	'MOVE_TO', 'CREATE_NEW', 'DELETE_CURRENT_ROW',
-	'BEFORE_DISCARD', 'DISCARD'
+	'BEFORE_DISCARD', 'DISCARD', 'BEFORE_SAVE', 'SAVE'
 );
+
+/**
+ * A base class for events that move the cursor position, or check for
+ * permission to do so.
+ * @constructor
+ */ 
+com.qwirx.data.Cursor.Event = function(type, newPosition)
+{
+	goog.base(this, type);
+	this.newPosition = newPosition;
+};
+goog.inherits(com.qwirx.data.Cursor.Event, goog.events.Event);
+com.qwirx.data.Cursor.Event.prototype.getNewPosition = function()
+{
+	return this.newPosition;
+};
 
 /**
  * @return the number of rows in the underlying data source, or null
