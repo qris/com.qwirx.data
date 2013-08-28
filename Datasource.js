@@ -2,10 +2,12 @@ goog.provide('com.qwirx.data.Datasource');
 goog.provide('com.qwirx.data.Datasource.Events');
 goog.provide('com.qwirx.data.Datasource.RowEvent');
 goog.provide('com.qwirx.data.SimpleDatasource');
+goog.provide('com.qwirx.data.NoSuchRecord');
 
 goog.require('goog.events.Event');
 goog.require('goog.events.EventTarget');
 goog.require('com.qwirx.util.Enum');
+goog.require('com.qwirx.util.Exception');
 
 /**
  * An exception thrown by {@link com.qwirx.data.Datasource#getRow}
@@ -19,6 +21,8 @@ com.qwirx.data.NoSuchRecord = function(message)
 {
 	this.message = message;
 };
+
+goog.inherits(com.qwirx.data.NoSuchRecord, com.qwirx.util.Exception);
 
 /**
  * @constructor
