@@ -694,10 +694,23 @@ goog.inherits(com.qwirx.data.IllegalMove,
  */
 com.qwirx.data.DiscardBlocked = function(message)
 {
-	com.qwirx.data.CursorMovementException.call(this, message);
+	goog.base(this, message);
 };
 goog.inherits(com.qwirx.data.DiscardBlocked,
 	com.qwirx.data.CursorMovementException);
+
+/**
+ * An exception response to a save attempt which is blocked by
+ * a {@link com.qwirx.data.Cursor.Events.BEFORE_SAVE} event handler
+ * cancelling the event, perhaps because the record is invalid and cannot
+ * be saved.
+ * @constructor
+ */
+com.qwirx.data.SaveBlocked = function(message)
+{
+	goog.base(this, message);
+};
+goog.inherits(com.qwirx.data.SaveBlocked, com.qwirx.util.Exception);
 
 /**
  * @return the value of the named field when this record was loaded,
@@ -705,8 +718,7 @@ goog.inherits(com.qwirx.data.DiscardBlocked,
  * @throws {com.qwirx.data.NoCurrentRecord} if the cursor is at
  * {com.qwirx.data.Cursor.BOF} or {com.qwirx.data.Cursor.EOF}.
  */
-com.qwirx.data.Cursor.prototype.getLoadedValues = function(fieldName,
-	newValue)
+com.qwirx.data.Cursor.prototype.getLoadedValues = function()
 {
 	this.assertCurrentRecord();
 	return goog.object.clone(this.currentRecordAsLoaded_);
@@ -718,8 +730,7 @@ com.qwirx.data.Cursor.prototype.getLoadedValues = function(fieldName,
  * @throws {com.qwirx.data.NoCurrentRecord} if the cursor is at
  * {com.qwirx.data.Cursor.BOF} or {com.qwirx.data.Cursor.EOF}.
  */
-com.qwirx.data.Cursor.prototype.getCurrentValues = function(fieldName,
-	newValue)
+com.qwirx.data.Cursor.prototype.getCurrentValues = function()
 {
 	this.assertCurrentRecord();
 	return goog.object.clone(this.currentRecordValues_);
