@@ -126,17 +126,36 @@ com.qwirx.data.Cursor.Events = new com.qwirx.util.Enum(
 );
 
 /**
+ * A base class for events that affect one row of the Cursor, or move 
+ * the cursor position from one row to another, or request permission to
+ * do so.
+ * @constructor
+ */ 
+com.qwirx.data.Cursor.RowEvent = function(type, position)
+{
+	goog.base(this, type);
+	this.position = position;
+};
+goog.inherits(com.qwirx.data.Cursor.RowEvent, goog.events.Event);
+com.qwirx.data.Cursor.RowEvent.prototype.getPosition = function()
+{
+	return this.position;
+};
+
+/**
  * A base class for events that move the cursor position, or check for
  * permission to do so.
  * @constructor
  */ 
-com.qwirx.data.Cursor.Event = function(type, newPosition)
+com.qwirx.data.Cursor.MovementEvent = function(type, newPosition,
+	oldPosition)
 {
-	goog.base(this, type);
+	goog.base(this, type, oldPosition);
 	this.newPosition = newPosition;
 };
-goog.inherits(com.qwirx.data.Cursor.Event, goog.events.Event);
-com.qwirx.data.Cursor.Event.prototype.getNewPosition = function()
+goog.inherits(com.qwirx.data.Cursor.MovementEvent, 
+	com.qwirx.data.Cursor.RowEvent);
+com.qwirx.data.Cursor.MovementEvent.prototype.getNewPosition = function()
 {
 	return this.newPosition;
 };
