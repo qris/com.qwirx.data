@@ -126,17 +126,36 @@ com.qwirx.data.Cursor.Events = new com.qwirx.util.Enum(
 );
 
 /**
+ * A base class for events that affect one row of the Cursor, or move 
+ * the cursor position from one row to another, or request permission to
+ * do so.
+ * @constructor
+ */ 
+com.qwirx.data.Cursor.RowEvent = function(type, position)
+{
+	goog.base(this, type);
+	this.position = position;
+};
+goog.inherits(com.qwirx.data.Cursor.RowEvent, goog.events.Event);
+com.qwirx.data.Cursor.RowEvent.prototype.getPosition = function()
+{
+	return this.position;
+};
+
+/**
  * A base class for events that move the cursor position, or check for
  * permission to do so.
  * @constructor
  */ 
-com.qwirx.data.Cursor.Event = function(type, newPosition)
+com.qwirx.data.Cursor.MovementEvent = function(type, oldPosition,
+	newPosition)
 {
-	goog.base(this, type);
+	goog.base(this, type, oldPosition);
 	this.newPosition = newPosition;
 };
-goog.inherits(com.qwirx.data.Cursor.Event, goog.events.Event);
-com.qwirx.data.Cursor.Event.prototype.getNewPosition = function()
+goog.inherits(com.qwirx.data.Cursor.MovementEvent, 
+	com.qwirx.data.Cursor.RowEvent);
+com.qwirx.data.Cursor.MovementEvent.prototype.getNewPosition = function()
 {
 	return this.newPosition;
 };
@@ -190,9 +209,7 @@ com.qwirx.data.Cursor.prototype.getPosition = function()
  */
 com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 {
-	// Don't discard anything if we're moving to the same row that we're
-	// already on.
-	if (newPosition != this.getPosition() && !this.maybeDiscard())
+	if (!this.maybeDiscard())
 	{
 		return;
 	}
@@ -340,9 +357,9 @@ com.qwirx.data.Cursor.prototype.maybeDiscard = function(opt_newPosition)
 		return true; // OK to move
 	}
 	
-	var event = new com.qwirx.data.Cursor.Event(
+	var event = new com.qwirx.data.Cursor.MovementEvent(
 		com.qwirx.data.Cursor.Events.BEFORE_DISCARD,
-		opt_newPosition);
+		this.getPosition(), opt_newPosition);
 	var cancelled = !this.dispatchEvent(event);
 	
 	if (cancelled)
@@ -398,9 +415,9 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
 	
 	this.currentRecordValues_ = this.currentRecordAsLoaded_;
 	this.dispatchEvent(
-		new com.qwirx.data.Cursor.Event(
+		new com.qwirx.data.Cursor.MovementEvent(
 			com.qwirx.data.Cursor.Events.DISCARD,
-			opt_newPosition));
+			this.getPosition(), opt_newPosition));
 	
 	if (this.getPosition() == com.qwirx.data.Cursor.NEW)
 	{
@@ -429,11 +446,6 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
  */
 com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 {
-	if (!this.maybeDiscard())
-	{
-		return;
-	}
-
 	var newPosition = this.position_;
 	var rowCount = this.getRowCount();
 
@@ -490,6 +502,11 @@ com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 	else if (rowCount != null && newPosition >= rowCount)
 	{
 		newPosition = com.qwirx.data.Cursor.EOF;
+	}
+
+	if (!this.maybeDiscard(newPosition))
+	{
+		return;
 	}
 
 	this.dispatchEvent({

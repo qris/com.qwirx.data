@@ -117,7 +117,8 @@ function test_cursor_positioning()
 	// exception if not.
 	com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
 		function() { c.setPosition(0); },
-		"setPosition should call maybeDiscard");
+		"setPosition should call maybeDiscard, even when the relative " +
+		"movement distance is zero (no change to position)");
 	com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
 		function() { c.moveRelative(1); },
 		"moveRelative should call maybeDiscard");
@@ -157,8 +158,11 @@ function test_cursor_new_record_creation()
 	c.setFieldValue('id', 'foo');
 	
 	// The Cursor should know that the (new) record has been modified
-	exception = assertThrows(function() { c.moveRelative(1); });
-	goog.asserts.assertInstanceof(exception, com.qwirx.data.DiscardBlocked);
+	exception = assertThrows(function() { c.moveRelative(-1); });
+	goog.asserts.assertInstanceof(exception, com.qwirx.data.DiscardBlocked,
+		"DiscardBlocked exception should be an instance of " +
+		"com.qwirx.data.DiscardBlocked, not " + exception + " (" +
+		exception.type + ")");
 
 	// Set another field value
 	c.setFieldValue('name', 'bar');
@@ -195,4 +199,25 @@ function test_cursor_positioning_after_insert()
 	ds.insert(0, n);
 	assertEquals("inserting a row before the current position should " +
 		"have changed it", 5, c.getPosition());
+}
+
+function test_cursor_events()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	c.setPosition(2);
+	c.setFieldValue('name', 'Stuart');
+	assertTrue(c.isDirty());
+	com.qwirx.test.assertEvents(c,
+		[com.qwirx.data.Cursor.Events.BEFORE_DISCARD], 
+		function() {
+			c.moveRelative(-1);
+		},
+		"Moving off a modified record should have sent a BEFORE_DISCARD event",
+		false /* opt_continue_if_events_not_sent */,
+		function(event) // opt_eventHandler
+		{
+			assertEquals(2, event.getPosition());
+			assertEquals(1, event.getNewPosition());
+		});
 }
