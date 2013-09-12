@@ -215,6 +215,7 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 	}
 
 	var rowCount = this.getRowCount();
+	var oldPosition = this.position_;
 	
 	if (newPosition == com.qwirx.data.Cursor.BOF ||
 		newPosition == com.qwirx.data.Cursor.EOF ||
@@ -230,13 +231,24 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 			newPosition);
 	}
 
-	if (newPosition == com.qwirx.data.Cursor.BOF ||
-		newPosition == com.qwirx.data.Cursor.EOF)
+	this.reloadRecord();
+	
+	this.dispatchEvent(new com.qwirx.data.Cursor.MovementEvent(
+		com.qwirx.data.Cursor.Events.MOVE_TO, oldPosition, newPosition));
+};
+
+/**
+ * Discard changes to the current record and reload it from the database.
+ */
+com.qwirx.data.Cursor.prototype.reloadRecord = function()
+{
+	if (this.position_ == com.qwirx.data.Cursor.BOF ||
+		this.position_ == com.qwirx.data.Cursor.EOF)
 	{
 		this.currentRecordValues_ = null;
 		this.currentRecordAsLoaded_ = null;
 	}
-	else if (newPosition == com.qwirx.data.Cursor.NEW)
+	else if (this.position_ == com.qwirx.data.Cursor.NEW)
 	{
 		this.currentRecordValues_ = {};
 		this.currentRecordAsLoaded_ = {};
@@ -248,7 +260,7 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 		var columns = this.dataSource_.getColumns();
 		var record;
 		
-		if (newPosition == com.qwirx.data.Cursor.NEW)
+		if (this.position_ == com.qwirx.data.Cursor.NEW)
 		{
 			record = {};
 		}
@@ -264,11 +276,6 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 				record[columns[i].name];
 		}
 	}
-	
-	this.dispatchEvent({
-		type: com.qwirx.data.Cursor.Events.MOVE_TO,
-		newPosition: newPosition
-		});
 };
 
 /**
@@ -773,6 +780,7 @@ com.qwirx.data.Cursor.prototype.getCurrentValues = function()
 com.qwirx.data.Cursor.prototype.save = function()
 {
 	this.assertCurrentRecord();
+	
 	if (this.position_ == com.qwirx.data.Cursor.NEW)
 	{
 		this.position_ = 
@@ -783,6 +791,11 @@ com.qwirx.data.Cursor.prototype.save = function()
 		this.dataSource_.putRecord(this.position_,
 			this.currentRecordValues_);
 	}
+	
+	this.reloadRecord();
+	this.dispatchEvent(new com.qwirx.data.Cursor.RowEvent(
+		com.qwirx.data.Cursor.Events.SAVE, this.position_));
+	
 	return this.position_;
 };
 
