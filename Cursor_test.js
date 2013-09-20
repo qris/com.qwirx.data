@@ -139,7 +139,7 @@ function test_cursor_positioning()
 	c.moveRelative(1);
 }
 
-function test_cursor_new_record_creation()
+function assert_cursor_new_record_creation(suppress_move_to_event)
 {
 	var ds = getTestDataSource();
 	var c = new com.qwirx.data.Cursor(ds);
@@ -170,11 +170,70 @@ function test_cursor_new_record_creation()
 	// Try to save the record.
 	// This record goes to the end of the datasource
 	var numRecords = ds.getCount();
-	c.save();
+	var actual_events = com.qwirx.test.assertEvents(c,
+		[
+			com.qwirx.data.Cursor.Events.SAVE,
+			com.qwirx.data.Cursor.Events.MOVE_TO
+		],
+		function() // eventing_callback
+		{
+			c.save(suppress_move_to_event);
+		},
+		"Cursor.save() should have sent a SAVE event to the Cursor",
+		suppress_move_to_event, // opt_continue_if_events_not_sent
+		function(event) // opt_eventHandler
+		{
+			if (event.type == com.qwirx.data.Cursor.Events.SAVE)
+			{
+				assertEquals("The position recorded in the SAVE event " +
+					"should be the new position of the newly saved record",
+					numRecords, event.getPosition());
+			}
+			else if (event.type == com.qwirx.data.Cursor.Events.MOVE_TO &&
+				!suppress_move_to_event)
+			{
+				assertEquals("The old position recorded in the MOVE_TO event " +
+					"should be the previous cursor position, NEW",
+					com.qwirx.data.Cursor.NEW, event.getPosition());
+				assertEquals("The new position recorded in the MOVE_TO " +
+					"event should be the new position of the cursor, which " +
+					"is the new position of the newly saved record",
+					numRecords, event.getNewPosition());
+			}
+			else
+			{
+				fail("Unexpected " + event.type + " event sent to Cursor");
+			}
+		});
+	
 	assertEquals(numRecords + 1, ds.getCount());
-	assertEquals(numRecords, c.getPosition());
-	assertEquals('foo', c.getCurrentValues().id);
-	assertEquals('bar', c.getCurrentValues().name);
+	
+	if (suppress_move_to_event)
+	{
+		assertEquals("No MOVE_TO event should have been sent if it's " +
+			"suppressed", 1, actual_events.length);
+		assertEquals("Because the MOVE_TO event was suppressed, for " +
+			"consistency the cursor should still be positioned at NEW",
+			com.qwirx.data.Cursor.NEW, c.getPosition());
+		assertObjectEquals("Because the MOVE_TO event was suppressed, and " +
+			"the cursor is still on NEW after save(), it should be a " +
+			"different NEW record, i.e. an empty one", {},
+			c.getCurrentValues());
+	}
+	else
+	{
+		assertEquals(numRecords, c.getPosition());
+		assertObjectEquals("The saved values should still be the current " +
+			"values of the current record", {id: 'foo', name: 'bar'},
+			c.getCurrentValues());
+	}
+}
+
+function test_cursor_new_record_creation()
+{
+	assert_cursor_new_record_creation(false);
+	assert_cursor_new_record_creation(undefined); // same as omitting parameter
+	assert_cursor_new_record_creation(true); // try suppressing the MOVE_TO
 }
 
 /**
