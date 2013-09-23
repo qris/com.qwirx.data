@@ -54,8 +54,7 @@ function test_simple_datasource_insert()
 	assertEquals(3, ds.getCount());
 	
 	com.qwirx.test.assertEvents(ds,
-		[com.qwirx.data.Datasource.Events.ROW_COUNT_CHANGE,
-		com.qwirx.data.Datasource.Events.ROWS_INSERT],
+		[com.qwirx.data.Datasource.Events.ROWS_INSERT],
 		function() { ds.insert(1, n); },
 		"DataSource.insert() did not fire the expected events");
 	
