@@ -139,6 +139,17 @@ function test_cursor_positioning()
 	c.moveRelative(1);
 }
 
+function test_cursor_save_record()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	c.setPosition(1);
+	c.setFieldValue('id', 'foo');
+	c.save();
+	assertObjectEquals("Updated values should have been stored in the " +
+		"datasource", {id: 'foo', name: 'James'}, ds.get(1));
+}
+
 function assert_cursor_new_record_creation(suppress_move_to_event)
 {
 	var ds = getTestDataSource();

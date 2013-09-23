@@ -831,7 +831,7 @@ com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent)
 	}
 	else
 	{
-		this.dataSource_.putRecord(this.position_,
+		this.dataSource_.replace(this.position_,
 			this.currentRecordValues_);
 	}
 	
