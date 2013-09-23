@@ -75,6 +75,27 @@ com.qwirx.data.Datasource.prototype.binarySearch =
 		});
 };
 
+com.qwirx.data.Datasource.prototype.assertValidRow = 
+	function(rowIndex, opt_maxIndex)
+{
+	if (rowIndex < 0)
+	{
+		throw new com.qwirx.data.NoSuchRecord('Impossible row ' +
+			'index: ' + rowIndex);
+	}
+
+	if (opt_maxIndex == undefined)
+	{
+		opt_maxIndex = this.data_.length - 1;
+	}
+
+	if (rowIndex > opt_maxIndex)
+	{
+		throw new com.qwirx.data.NoSuchRecord('Row index ' + rowIndex +
+			' is greater than allowed: ' + opt_maxIndex);
+	}
+};
+
 /**
  * A simple data source for the grid component.
  * @param {Array.<string>} columns The names of the columns in this
@@ -122,27 +143,6 @@ com.qwirx.data.SimpleDatasource.prototype.getColumns = function()
 com.qwirx.data.SimpleDatasource.prototype.getCount = function()
 {
 	return this.data_.length;
-};
-
-com.qwirx.data.SimpleDatasource.prototype.assertValidRow = 
-	function(rowIndex, opt_maxIndex)
-{
-	if (rowIndex < 0)
-	{
-		throw new com.qwirx.data.NoSuchRecord('Impossible row ' +
-			'index: ' + rowIndex);
-	}
-
-	if (opt_maxIndex == undefined)
-	{
-		opt_maxIndex = this.data_.length - 1;
-	}
-
-	if (rowIndex > opt_maxIndex)
-	{
-		throw new com.qwirx.data.NoSuchRecord('Row index ' + rowIndex +
-			' is greater than allowed: ' + opt_maxIndex);
-	}
 };
 
 com.qwirx.data.SimpleDatasource.prototype.get = function(rowIndex)
