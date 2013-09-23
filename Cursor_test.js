@@ -11,9 +11,9 @@ function getTestDataSource()
 	var columns = [{name: 'id', caption: 'ID'},
 		{name: 'name', caption: 'Name'}];
 	var data = [
-		[{value: 1}, {value: 'John'}],
-		[{value: 2}, {value: 'James'}],
-		[{value: 5}, {value: 'Peter'}],
+		{id: 1, name: 'John'},
+		{id: 2, name: 'James'},
+		{id: 5, name: 'Peter'},
 	];
 	return new com.qwirx.data.SimpleDatasource(columns, data);
 }
