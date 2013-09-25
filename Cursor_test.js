@@ -275,19 +275,28 @@ function test_cursor_events()
 {
 	var ds = getTestDataSource();
 	var c = new com.qwirx.data.Cursor(ds);
+	blockDiscards(c);
+	
 	c.setPosition(2);
 	c.setFieldValue('name', 'Stuart');
 	assertTrue(c.isDirty());
-	com.qwirx.test.assertEvents(c,
+	var expectedNewPosition;
+	var events = com.qwirx.test.assertEvents(c,
 		[com.qwirx.data.Cursor.Events.BEFORE_DISCARD], 
 		function() {
-			c.moveRelative(-1);
+			expectedNewPosition = 2 - 1;
+			com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
+				function() { c.moveRelative(-1); });
+			expectedNewPosition = 0;
+			com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
+				function() { c.setPosition(0); });
 		},
 		"Moving off a modified record should have sent a BEFORE_DISCARD event",
 		false /* opt_continue_if_events_not_sent */,
 		function(event) // opt_eventHandler
 		{
 			assertEquals(2, event.getPosition());
-			assertEquals(1, event.getNewPosition());
+			assertEquals(expectedNewPosition, event.getNewPosition());
 		});
+	assertEquals(2, events.length);
 }

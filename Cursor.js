@@ -242,7 +242,7 @@ com.qwirx.data.Cursor.prototype.moveInternal = function(newPosition)
  */
 com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 {
-	if (!this.maybeDiscard())
+	if (!this.maybeDiscard(newPosition))
 	{
 		return;
 	}
