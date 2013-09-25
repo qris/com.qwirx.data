@@ -19,7 +19,7 @@ goog.require('com.qwirx.util.Exception');
  */
 com.qwirx.data.NoSuchRecord = function(message)
 {
-	this.message = message;
+	goog.base(this, message);
 };
 
 goog.inherits(com.qwirx.data.NoSuchRecord, com.qwirx.util.Exception);
@@ -31,8 +31,12 @@ com.qwirx.data.Datasource = goog.nullFunction;
 
 goog.inherits(com.qwirx.data.Datasource, goog.events.EventTarget);
 
+// TODO a "row count change" is not a valid event for a Datasource to send,
+// because the receiver has no idea which rows have been added or removed,
+// so it doesn't know what to redraw. Remove this event.
+
 com.qwirx.data.Datasource.Events = new com.qwirx.util.Enum(
-	'ROW_COUNT_CHANGE', 'ROWS_INSERT', 'ROWS_UPDATE', 'ROWS_DELETE'
+	'ROWS_INSERT', 'ROWS_UPDATE', 'ROWS_DELETE'
 );
 
 /**
@@ -69,6 +73,27 @@ com.qwirx.data.Datasource.prototype.binarySearch =
 		{
 			return compareRowFn(target, ds.get(atIndex));
 		});
+};
+
+com.qwirx.data.Datasource.prototype.assertValidRow = 
+	function(rowIndex, opt_maxIndex)
+{
+	if (rowIndex < 0)
+	{
+		throw new com.qwirx.data.NoSuchRecord('Impossible row ' +
+			'index: ' + rowIndex);
+	}
+
+	if (opt_maxIndex == undefined)
+	{
+		opt_maxIndex = this.data_.length - 1;
+	}
+
+	if (rowIndex > opt_maxIndex)
+	{
+		throw new com.qwirx.data.NoSuchRecord('Row index ' + rowIndex +
+			' is greater than allowed: ' + opt_maxIndex);
+	}
 };
 
 /**
@@ -120,27 +145,6 @@ com.qwirx.data.SimpleDatasource.prototype.getCount = function()
 	return this.data_.length;
 };
 
-com.qwirx.data.SimpleDatasource.prototype.assertValidRow = 
-	function(rowIndex, opt_maxIndex)
-{
-	if (rowIndex < 0)
-	{
-		throw new com.qwirx.data.NoSuchRecord('Impossible row ' +
-			'index: ' + rowIndex);
-	}
-
-	if (opt_maxIndex == undefined)
-	{
-		opt_maxIndex = this.data_.length - 1;
-	}
-
-	if (rowIndex > opt_maxIndex)
-	{
-		throw new com.qwirx.data.NoSuchRecord('Row index ' + rowIndex +
-			' is greater than allowed: ' + opt_maxIndex);
-	}
-};
-
 com.qwirx.data.SimpleDatasource.prototype.get = function(rowIndex)
 {
 	this.assertValidRow(rowIndex);
@@ -169,8 +173,6 @@ com.qwirx.data.SimpleDatasource.prototype.insert =
 	this.data_.splice(rowIndex, 0, goog.object.clone(newRecord));
 	this.dispatchEvent(new com.qwirx.data.Datasource.RowEvent(
 		com.qwirx.data.Datasource.Events.ROWS_INSERT, [rowIndex]));
-	this.dispatchEvent(new com.qwirx.data.Datasource.RowEvent(
-		com.qwirx.data.Datasource.Events.ROW_COUNT_CHANGE, this.data_.length));
 };
 
 /**

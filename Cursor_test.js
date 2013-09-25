@@ -11,9 +11,9 @@ function getTestDataSource()
 	var columns = [{name: 'id', caption: 'ID'},
 		{name: 'name', caption: 'Name'}];
 	var data = [
-		[{value: 1}, {value: 'John'}],
-		[{value: 2}, {value: 'James'}],
-		[{value: 5}, {value: 'Peter'}],
+		{id: 1, name: 'John'},
+		{id: 2, name: 'James'},
+		{id: 5, name: 'Peter'},
 	];
 	return new com.qwirx.data.SimpleDatasource(columns, data);
 }
@@ -117,7 +117,8 @@ function test_cursor_positioning()
 	// exception if not.
 	com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
 		function() { c.setPosition(0); },
-		"setPosition should call maybeDiscard");
+		"setPosition should call maybeDiscard, even when the relative " +
+		"movement distance is zero (no change to position)");
 	com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
 		function() { c.moveRelative(1); },
 		"moveRelative should call maybeDiscard");
@@ -138,7 +139,18 @@ function test_cursor_positioning()
 	c.moveRelative(1);
 }
 
-function test_cursor_new_record_creation()
+function test_cursor_save_record()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	c.setPosition(1);
+	c.setFieldValue('id', 'foo');
+	c.save();
+	assertObjectEquals("Updated values should have been stored in the " +
+		"datasource", {id: 'foo', name: 'James'}, ds.get(1));
+}
+
+function assert_cursor_new_record_creation(suppress_move_to_event)
 {
 	var ds = getTestDataSource();
 	var c = new com.qwirx.data.Cursor(ds);
@@ -157,8 +169,11 @@ function test_cursor_new_record_creation()
 	c.setFieldValue('id', 'foo');
 	
 	// The Cursor should know that the (new) record has been modified
-	exception = assertThrows(function() { c.moveRelative(1); });
-	goog.asserts.assertInstanceof(exception, com.qwirx.data.DiscardBlocked);
+	exception = assertThrows(function() { c.moveRelative(-1); });
+	goog.asserts.assertInstanceof(exception, com.qwirx.data.DiscardBlocked,
+		"DiscardBlocked exception should be an instance of " +
+		"com.qwirx.data.DiscardBlocked, not " + exception + " (" +
+		exception.type + ")");
 
 	// Set another field value
 	c.setFieldValue('name', 'bar');
@@ -166,11 +181,70 @@ function test_cursor_new_record_creation()
 	// Try to save the record.
 	// This record goes to the end of the datasource
 	var numRecords = ds.getCount();
-	c.save();
+	var actual_events = com.qwirx.test.assertEvents(c,
+		[
+			com.qwirx.data.Cursor.Events.SAVE,
+			com.qwirx.data.Cursor.Events.MOVE_TO
+		],
+		function() // eventing_callback
+		{
+			c.save(suppress_move_to_event);
+		},
+		"Cursor.save() should have sent a SAVE event to the Cursor",
+		suppress_move_to_event, // opt_continue_if_events_not_sent
+		function(event) // opt_eventHandler
+		{
+			if (event.type == com.qwirx.data.Cursor.Events.SAVE)
+			{
+				assertEquals("The position recorded in the SAVE event " +
+					"should be the new position of the newly saved record",
+					numRecords, event.getPosition());
+			}
+			else if (event.type == com.qwirx.data.Cursor.Events.MOVE_TO &&
+				!suppress_move_to_event)
+			{
+				assertEquals("The old position recorded in the MOVE_TO event " +
+					"should be the previous cursor position, NEW",
+					com.qwirx.data.Cursor.NEW, event.getPosition());
+				assertEquals("The new position recorded in the MOVE_TO " +
+					"event should be the new position of the cursor, which " +
+					"is the new position of the newly saved record",
+					numRecords, event.getNewPosition());
+			}
+			else
+			{
+				fail("Unexpected " + event.type + " event sent to Cursor");
+			}
+		});
+	
 	assertEquals(numRecords + 1, ds.getCount());
-	assertEquals(numRecords, c.getPosition());
-	assertEquals('foo', c.getCurrentValues().id);
-	assertEquals('bar', c.getCurrentValues().name);
+	
+	if (suppress_move_to_event)
+	{
+		assertEquals("No MOVE_TO event should have been sent if it's " +
+			"suppressed", 1, actual_events.length);
+		assertEquals("Because the MOVE_TO event was suppressed, for " +
+			"consistency the cursor should still be positioned at NEW",
+			com.qwirx.data.Cursor.NEW, c.getPosition());
+		assertObjectEquals("Because the MOVE_TO event was suppressed, and " +
+			"the cursor is still on NEW after save(), it should be a " +
+			"different NEW record, i.e. an empty one", {},
+			c.getCurrentValues());
+	}
+	else
+	{
+		assertEquals(numRecords, c.getPosition());
+		assertObjectEquals("The saved values should still be the current " +
+			"values of the current record", {id: 'foo', name: 'bar'},
+			c.getCurrentValues());
+	}
+}
+
+function test_cursor_new_record_creation()
+{
+	assert_cursor_new_record_creation(false);
+	assert_cursor_new_record_creation(undefined); // same as omitting parameter
+	assert_cursor_new_record_creation(true); // try suppressing the MOVE_TO
 }
 
 /**
@@ -195,4 +269,34 @@ function test_cursor_positioning_after_insert()
 	ds.insert(0, n);
 	assertEquals("inserting a row before the current position should " +
 		"have changed it", 5, c.getPosition());
+}
+
+function test_cursor_events()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	blockDiscards(c);
+	
+	c.setPosition(2);
+	c.setFieldValue('name', 'Stuart');
+	assertTrue(c.isDirty());
+	var expectedNewPosition;
+	var events = com.qwirx.test.assertEvents(c,
+		[com.qwirx.data.Cursor.Events.BEFORE_DISCARD], 
+		function() {
+			expectedNewPosition = 2 - 1;
+			com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
+				function() { c.moveRelative(-1); });
+			expectedNewPosition = 0;
+			com.qwirx.test.assertThrows(com.qwirx.data.DiscardBlocked,
+				function() { c.setPosition(0); });
+		},
+		"Moving off a modified record should have sent a BEFORE_DISCARD event",
+		false /* opt_continue_if_events_not_sent */,
+		function(event) // opt_eventHandler
+		{
+			assertEquals(2, event.getPosition());
+			assertEquals(expectedNewPosition, event.getNewPosition());
+		});
+	assertEquals(2, events.length);
 }

@@ -137,6 +137,23 @@ com.qwirx.data.Cursor.RowEvent = function(type, position)
 	this.position = position;
 };
 goog.inherits(com.qwirx.data.Cursor.RowEvent, goog.events.Event);
+
+/**
+ * @return the position of the Cursor that was affected or previously
+ * occupied (starting position).
+ * 
+ * Note that the "position" of a SAVE event is the affected (newly created)
+ * row index (a real row number), but the starting position (getPosition())
+ * of the subsequent MOVE_TO event is the row that we were originally
+ * positioned on before the movement, i.e. the NEW row, because the cursor
+ * has moved from NEW to the newly created row.
+ * 
+ * Also note that if the MOVE_TO event is suppressed, then the cursor 
+ * must remain positioned on NEW, although the record that's just been
+ * created is no longer there. So although, usually, SaveEvent.getPosition()
+ * returns the current cursor position (immediately after the SAVE), in this
+ * case it does not, so it's not guaranteed.
+ */
 com.qwirx.data.Cursor.RowEvent.prototype.getPosition = function()
 {
 	return this.position;
@@ -147,8 +164,8 @@ com.qwirx.data.Cursor.RowEvent.prototype.getPosition = function()
  * permission to do so.
  * @constructor
  */ 
-com.qwirx.data.Cursor.MovementEvent = function(type, newPosition,
-	oldPosition)
+com.qwirx.data.Cursor.MovementEvent = function(type, oldPosition,
+	newPosition)
 {
 	goog.base(this, type, oldPosition);
 	this.newPosition = newPosition;
@@ -183,6 +200,22 @@ com.qwirx.data.Cursor.prototype.getPosition = function()
 };
 
 /**
+ * Sets the position FIRST, and THEN sends a MOVE_TO event. MOVE_TO is not
+ * cancellable (BEFORE_MOVE_TO would be, if it existed) and therefore people
+ * can expect the Cursor to be positioned on the new record when they receive
+ * a MOVE_TO event, and the new data loaded. com.qwirx.grid.NavigationBar
+ * relies on this.
+ */
+com.qwirx.data.Cursor.prototype.moveInternal = function(newPosition)
+{
+	var oldPosition = this.position_;
+	this.position_ = newPosition;
+	this.reloadRecord();
+	this.dispatchEvent(new com.qwirx.data.Cursor.MovementEvent(
+		com.qwirx.data.Cursor.Events.MOVE_TO, oldPosition, newPosition));
+};
+
+/**
  * @param newPosition the new position, which is an integer between
  * 0 and {com.qwirx.data.Cursor#getRowCount}() - 1, unless the row count is
  * unknown (null), in which case there is no upper bound; or one of the
@@ -209,9 +242,7 @@ com.qwirx.data.Cursor.prototype.getPosition = function()
  */
 com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 {
-	// Don't discard anything if we're moving to the same row that we're
-	// already on.
-	if (newPosition != this.getPosition() && !this.maybeDiscard())
+	if (!this.maybeDiscard(newPosition))
 	{
 		return;
 	}
@@ -224,7 +255,7 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 		(newPosition >= 0 &&
 		(rowCount == null || newPosition < rowCount)))
 	{
-		this.position_ = newPosition;
+		// moveInternal will change position_ for us
 	}
 	else
 	{
@@ -232,13 +263,24 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 			newPosition);
 	}
 
-	if (newPosition == com.qwirx.data.Cursor.BOF ||
-		newPosition == com.qwirx.data.Cursor.EOF)
+	if (newPosition != this.position_)
+	{
+		this.moveInternal(newPosition);
+	}
+};
+
+/**
+ * Discard changes to the current record and reload it from the database.
+ */
+com.qwirx.data.Cursor.prototype.reloadRecord = function()
+{
+	if (this.position_ == com.qwirx.data.Cursor.BOF ||
+		this.position_ == com.qwirx.data.Cursor.EOF)
 	{
 		this.currentRecordValues_ = null;
 		this.currentRecordAsLoaded_ = null;
 	}
-	else if (newPosition == com.qwirx.data.Cursor.NEW)
+	else if (this.position_ == com.qwirx.data.Cursor.NEW)
 	{
 		this.currentRecordValues_ = {};
 		this.currentRecordAsLoaded_ = {};
@@ -250,7 +292,7 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 		var columns = this.dataSource_.getColumns();
 		var record;
 		
-		if (newPosition == com.qwirx.data.Cursor.NEW)
+		if (this.position_ == com.qwirx.data.Cursor.NEW)
 		{
 			record = {};
 		}
@@ -266,11 +308,6 @@ com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 				record[columns[i].name];
 		}
 	}
-	
-	this.dispatchEvent({
-		type: com.qwirx.data.Cursor.Events.MOVE_TO,
-		newPosition: newPosition
-		});
 };
 
 /**
@@ -359,9 +396,9 @@ com.qwirx.data.Cursor.prototype.maybeDiscard = function(opt_newPosition)
 		return true; // OK to move
 	}
 	
-	var event = new com.qwirx.data.Cursor.Event(
+	var event = new com.qwirx.data.Cursor.MovementEvent(
 		com.qwirx.data.Cursor.Events.BEFORE_DISCARD,
-		opt_newPosition);
+		this.getPosition(), opt_newPosition);
 	var cancelled = !this.dispatchEvent(event);
 	
 	if (cancelled)
@@ -417,9 +454,9 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
 	
 	this.currentRecordValues_ = this.currentRecordAsLoaded_;
 	this.dispatchEvent(
-		new com.qwirx.data.Cursor.Event(
+		new com.qwirx.data.Cursor.MovementEvent(
 			com.qwirx.data.Cursor.Events.DISCARD,
-			opt_newPosition));
+			this.getPosition(), opt_newPosition));
 	
 	if (this.getPosition() == com.qwirx.data.Cursor.NEW)
 	{
@@ -448,11 +485,6 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
  */
 com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 {
-	if (!this.maybeDiscard())
-	{
-		return;
-	}
-
 	var newPosition = this.position_;
 	var rowCount = this.getRowCount();
 
@@ -509,6 +541,11 @@ com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 	else if (rowCount != null && newPosition >= rowCount)
 	{
 		newPosition = com.qwirx.data.Cursor.EOF;
+	}
+
+	if (!this.maybeDiscard(newPosition))
+	{
+		return;
 	}
 
 	this.dispatchEvent({
@@ -603,12 +640,7 @@ com.qwirx.data.Cursor.prototype.handleDataSourceRowInsert = function(event)
 	{
 		// don't discard data being edited, as would happen if we called
 		// setPosition(), because there's no need.
-		
-		this.dispatchEvent({
-			type: com.qwirx.data.Cursor.Events.MOVE_TO,
-			newPosition: newPosition
-			});
-		this.position_ = newPosition;
+		this.moveInternal(newPosition);
 	}
 };
 
@@ -769,22 +801,49 @@ com.qwirx.data.Cursor.prototype.getCurrentValues = function()
  * Write the current record to the {com.qwirx.data.Datasource}. This
  * only makes sense when the cursor is positioned on a current record
  * or at {com.qwirx.data.Cursor.NEW}.
+ * 
+ * @param {boolean} opt_suppressMoveToEvent set to true if you want to
+ * suppress the automatic MOVE_TO event caused by moving the cursor from
+ * a NEW row to a newly created real row. For example, you might do this
+ * if you're about to move the cursor again, because the save() was part
+ * of handling a requested movement away from a dirty row.
+ * 
+ * If the movement event is suppressed, and we were saving a new
+ * record, then we're still positioned on NEW because we haven't sent
+ * a MOVE_TO event to indicate that we've moved elsewhere. So the
+ * newly saved record is elsewhere, and the current one is empty.
+ *
+ * Also note the subtle inconsistency between SaveEvent.getPosition()
+ * and Cursor.getPosition() in this case, as described in
+ * {com.qwirx.data.Cursor.RowEvent.prototype#getPosition}.
+ * 
  * @throws {com.qwirx.data.NoCurrentRecord} if the cursor is at
  * {com.qwirx.data.Cursor.BOF} or {com.qwirx.data.Cursor.EOF}.
  */
-com.qwirx.data.Cursor.prototype.save = function()
+com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent)
 {
 	this.assertCurrentRecord();
+	var newPosition = this.position_;
+	
 	if (this.position_ == com.qwirx.data.Cursor.NEW)
 	{
-		this.position_ = 
-			this.dataSource_.add(this.currentRecordValues_);
+		newPosition = this.dataSource_.add(this.currentRecordValues_);
 	}
 	else
 	{
-		this.dataSource_.putRecord(this.position_,
+		this.dataSource_.replace(this.position_,
 			this.currentRecordValues_);
 	}
-	return this.position_;
+	
+	this.reloadRecord();
+	this.dispatchEvent(new com.qwirx.data.Cursor.RowEvent(
+		com.qwirx.data.Cursor.Events.SAVE, newPosition));
+	
+	if (newPosition != this.position_ && !opt_suppressMoveToEvent)
+	{
+		this.moveInternal(newPosition);
+	}
+	
+	return newPosition;
 };
 
