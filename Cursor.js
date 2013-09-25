@@ -215,6 +215,25 @@ com.qwirx.data.Cursor.prototype.moveInternal = function(newPosition)
 		com.qwirx.data.Cursor.Events.MOVE_TO, oldPosition, newPosition));
 };
 
+com.qwirx.data.Cursor.prototype.assertValidPosition = function(position)
+{
+	var rowCount = this.getRowCount();
+	
+	if (position == com.qwirx.data.Cursor.BOF ||
+		position == com.qwirx.data.Cursor.EOF ||
+		position == com.qwirx.data.Cursor.NEW ||
+		(position >= 0 &&
+		(rowCount == null || position < rowCount)))
+	{
+		return true;
+	}
+	else
+	{
+		throw new com.qwirx.data.IllegalMove("Invalid position: " +
+			position);
+	}
+};
+
 /**
  * @param newPosition the new position, which is an integer between
  * 0 and {com.qwirx.data.Cursor#getRowCount}() - 1, unless the row count is
@@ -242,25 +261,11 @@ com.qwirx.data.Cursor.prototype.moveInternal = function(newPosition)
  */
 com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 {
+	this.assertValidPosition(newPosition);
+
 	if (!this.maybeDiscard(newPosition))
 	{
 		return;
-	}
-
-	var rowCount = this.getRowCount();
-	
-	if (newPosition == com.qwirx.data.Cursor.BOF ||
-		newPosition == com.qwirx.data.Cursor.EOF ||
-		newPosition == com.qwirx.data.Cursor.NEW ||
-		(newPosition >= 0 &&
-		(rowCount == null || newPosition < rowCount)))
-	{
-		// moveInternal will change position_ for us
-	}
-	else
-	{
-		throw new com.qwirx.data.IllegalMove("Invalid position: " +
-			newPosition);
 	}
 
 	if (newPosition != this.position_)
@@ -543,6 +548,8 @@ com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 		newPosition = com.qwirx.data.Cursor.EOF;
 	}
 
+	this.assertValidPosition(newPosition);
+	
 	if (!this.maybeDiscard(newPosition))
 	{
 		return;

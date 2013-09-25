@@ -71,6 +71,12 @@ function test_cursor_positioning()
 	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
 		function() { c.moveRelative(1); });
 
+	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
+		function() { c.setPosition(-1); });
+	
+	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
+		function() { c.setPosition(c.getRowCount()); });
+	
 	assertTrue(c.moveRelative(-1));
 	assertEquals(2, c.getPosition());
 	
@@ -300,3 +306,29 @@ function test_cursor_events()
 		});
 	assertEquals(2, events.length);
 }
+
+function test_illegal_moves_from_dirty_records()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	blockDiscards(c);
+	
+	c.setPosition(0);
+	c.setFieldValue('id', 'dirty');
+	assertTrue(c.isDirty());
+	
+	/*
+	// Can't test this: moveRelative automatically adjusts out of bounds
+	// accesses to be within the valid range.
+	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
+		function() { c.moveRelative(-2); });
+	*/
+
+	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
+		function() { c.setPosition(-1); });
+	
+	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
+		function() { c.setPosition(c.getRowCount()); });
+}
+	
+	
