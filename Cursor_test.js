@@ -331,4 +331,66 @@ function test_illegal_moves_from_dirty_records()
 		function() { c.setPosition(c.getRowCount()); });
 }
 	
+function test_save_on_modified_record_sends_event()
+{
+	var ds = getTestDataSource();
+	var c1 = new com.qwirx.data.Cursor(ds);
+	var c2 = new com.qwirx.data.Cursor(ds);
 	
+	c1.setPosition(1);
+	c2.setPosition(1);
+	
+	c1.setFieldValue('name', 'Stuart');
+	c2.setFieldValue('name', 'Jonathan');
+	
+	c1.save();
+	
+	function trySave(trigger, events, handler)
+	{
+		return com.qwirx.test.assertEvents(c2,
+			events,
+			trigger,
+			"Saving a record that was modified by someone else should have " +
+			"sent a BEFORE_OVERWRITE event",
+			false /* opt_continue_if_events_not_sent */,
+			function handler_wrapper(event) // opt_eventHandler
+			{
+				goog.asserts.assertInstanceof(event,
+					com.qwirx.data.Cursor.RowEvent,
+					"BEFORE_OVERWRITE event should be an instance of " +
+					"com.qwirx.data.Cursor.RowEvent, not " + event +
+					" (" + event.type + ")");
+				return handler(event);
+			});
+	}
+	
+	// Cancel the event. This should result in an exception being thrown.
+	trySave(
+		function() { // trigger
+			com.qwirx.test.assertThrows(com.qwirx.data.OverwriteBlocked,
+				function() { c2.save(); });
+		},
+		[com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE], // events
+		function(event) { // event handler
+			// don't call event.preventDefault();
+			return false;
+		});
+	assertObjectEquals("The underlying object should not have been changed",
+		{id: 2, name: 'Stuart'}, ds.get(1));
+	
+	// Allow the event. This should result in the record being saved.
+	trySave(
+		function() { // trigger
+			c2.save();
+		},
+		[ // events
+			com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+			com.qwirx.data.Cursor.Events.OVERWRITE
+		],
+		function(event) { // event handler
+			// don't call event.preventDefault();
+			return true;
+		});
+	assertObjectEquals("The underlying object should have been changed",
+		{id: 2, name: 'Jonathan'}, ds.get(1));
+}

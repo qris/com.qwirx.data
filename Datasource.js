@@ -21,8 +21,27 @@ com.qwirx.data.NoSuchRecord = function(message)
 {
 	goog.base(this, message);
 };
-
 goog.inherits(com.qwirx.data.NoSuchRecord, com.qwirx.util.Exception);
+
+/**
+ * An exception thrown by {@link com.qwirx.data.Datasource#atomicReplace}
+ * if the current data values in the datasource don't match the old values
+ * passed in, which implies that the record has been modified by someone
+ * else in the meantime.
+ * @constructor
+ */
+com.qwirx.data.ConcurrentModification = function(currentValues)
+{
+	goog.base(this, "The current values of the row are different than " +
+		"the expected values. It appears that the row has been modified, " +
+		"so it will not be overwritten.");
+	this.currentValues_ = currentValues;
+};
+goog.inherits(com.qwirx.data.ConcurrentModification, com.qwirx.util.Exception);
+com.qwirx.data.ConcurrentModification.prototype.getCurrentValues = function()
+{
+	return this.currentValues_;
+};
 
 /**
  * @constructor
@@ -94,6 +113,68 @@ com.qwirx.data.Datasource.prototype.assertValidRow =
 		throw new com.qwirx.data.NoSuchRecord('Row index ' + rowIndex +
 			' is greater than allowed: ' + opt_maxIndex);
 	}
+};
+
+/**
+ * Replace the row (record) at the specified index of a simple
+ * datasource with new data. The current values must match the supplied
+ * oldValues, or a {com.qwirx.data.ConcurrentModification} exception
+ * will be thrown. This is designed to protect you against silently
+ * overwriting changes made to the Datasource by another user.
+ * Otherwise behaves the same as
+ * {com.qwirx.data.SimpleDatasource.prototype.replace}.
+ *
+ * @param {number} rowIndex The row index to replace/overwrite.
+ * {com.qwirx.data.SimpleDatasource.prototype.get}(rowIndex) will
+ * return the data just inserted. Other rows will be unaffected.
+ *
+ * @param {!Object} expectedCurrentValues The values which must match the
+ * current record values, otherwise a {com.qwirx.data.ConcurrentModification}
+ * exception will be thrown.
+ * 
+ * @param {!Object} newValues The values for the new record, which
+ * may include or omit values for any columns in
+ * {com.qwirx.data.SimpleDatasource.prototype.getColumns}.
+ */
+com.qwirx.data.Datasource.prototype.atomicReplace = 
+	function(rowIndex, expectedCurrentValues, newValues)
+{
+	goog.asserts.assertObject(expectedCurrentValues);
+	goog.asserts.assertObject(newValues);
+	this.assertValidRow(rowIndex);
+	
+	var actualCurrentValues = this.get(rowIndex);
+	var isDifferent = false;
+	
+	for (var k in actualCurrentValues)
+	{
+		if (actualCurrentValues.hasOwnProperty(k) && 
+			expectedCurrentValues[k] != actualCurrentValues[k])
+		{
+			isDifferent = true;
+			break;
+		}
+	}
+	
+	if (!isDifferent)
+	{
+		for (var k in expectedCurrentValues)
+		{
+			if (expectedCurrentValues.hasOwnProperty(k) && 
+				expectedCurrentValues[k] != actualCurrentValues[k])
+			{
+				isDifferent = true;
+				break;
+			}
+		}
+	}
+	
+	if (isDifferent)
+	{
+		throw new com.qwirx.data.ConcurrentModification(actualCurrentValues);
+	}
+	
+	return this.replace(rowIndex, newValues);
 };
 
 /**
@@ -238,5 +319,3 @@ com.qwirx.data.SimpleDatasource.prototype.remove = function(rowIndex)
 	this.dispatchEvent(new com.qwirx.data.Datasource.RowEvent(
 		com.qwirx.data.Datasource.Events.ROWS_DELETE, [rowIndex]));
 };
-
-

@@ -122,7 +122,8 @@ com.qwirx.data.Cursor.NEW = "NEW";
 com.qwirx.data.Cursor.Events = new com.qwirx.util.Enum(
 	'MOVE_FIRST', 'MOVE_BACKWARD', 'MOVE_FORWARD', 'MOVE_LAST',
 	'MOVE_TO', 'CREATE_NEW', 'DELETE_CURRENT_ROW',
-	'BEFORE_DISCARD', 'DISCARD', 'BEFORE_SAVE', 'SAVE'
+	'BEFORE_DISCARD', 'DISCARD', 'BEFORE_SAVE', 'SAVE',
+	'BEFORE_OVERWRITE', 'OVERWRITE'
 );
 
 /**
@@ -415,6 +416,12 @@ com.qwirx.data.Cursor.prototype.maybeDiscard = function(opt_newPosition)
 		// has preventDefault set and if so, don't throw an exception,
 		// but return false instead. So callers must check for that
 		// and not continue with the movement!
+		
+		// TODO this is a nonsense. It's not up to Grid to
+		// decide whether Cursor should throw an exception or
+		// not. We should be consistent and always throw an
+		// exception if the save is cancelled. Callers can
+		// catch it and ignore it if they want.
 		
 		if (event.defaultPrevented)
 		{
@@ -781,6 +788,22 @@ com.qwirx.data.SaveBlocked = function(message)
 goog.inherits(com.qwirx.data.SaveBlocked, com.qwirx.util.Exception);
 
 /**
+ * An exception response to a movement attempt which is blocked by
+ * a {@link com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE} event handler
+ * cancelling the event, perhaps because the user decided not to
+ * overwrite the record that changed under their feet.
+ * @constructor
+ */
+com.qwirx.data.OverwriteBlocked = function()
+{
+	goog.base(this, "The record in the datasource has changed since " +
+		"we loaded it, and the BEFORE_OVERWRITE event was cancelled, " +
+		"so the cursor has not saved the current record.");
+};
+goog.inherits(com.qwirx.data.OverwriteBlocked,
+	com.qwirx.data.CursorMovementException);
+
+/**
  * @return the value of the named field when this record was loaded,
  * as opposed to its current value.
  * @throws {com.qwirx.data.NoCurrentRecord} if the cursor is at
@@ -838,8 +861,39 @@ com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent)
 	}
 	else
 	{
-		this.dataSource_.replace(this.position_,
-			this.currentRecordValues_);
+		try
+		{
+			this.dataSource_.atomicReplace(this.position_,
+				this.currentRecordAsLoaded_, this.currentRecordValues_);
+		}
+		catch (e)
+		{
+			if (e instanceof com.qwirx.data.ConcurrentModification)
+			{
+				var event = new com.qwirx.data.Cursor.RowEvent(
+					com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+					this.getPosition());
+				var cancelled = !this.dispatchEvent(event);
+				
+				if (cancelled)
+				{
+					throw new com.qwirx.data.OverwriteBlocked();
+				}
+				else
+				{
+					this.dataSource_.atomicReplace(this.position_,
+						e.getCurrentValues(), this.currentRecordValues_);
+					this.dispatchEvent(
+						new com.qwirx.data.Cursor.RowEvent(
+							com.qwirx.data.Cursor.Events.OVERWRITE,
+							this.getPosition()));
+				}
+			}
+			else
+			{
+				throw e;
+			}
+		}
 	}
 	
 	this.reloadRecord();
