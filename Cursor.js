@@ -123,7 +123,7 @@ com.qwirx.data.Cursor.Events = new com.qwirx.util.Enum(
 	'MOVE_FIRST', 'MOVE_BACKWARD', 'MOVE_FORWARD', 'MOVE_LAST',
 	'MOVE_TO', 'CREATE_NEW', 'DELETE_CURRENT_ROW',
 	'BEFORE_DISCARD', 'DISCARD', 'BEFORE_SAVE', 'SAVE',
-	'BEFORE_OVERWRITE', 'OVERWRITE'
+	'BEFORE_OVERWRITE', 'OVERWRITE', 'MODIFIED'
 );
 
 /**
@@ -463,6 +463,9 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
 	{
 		this.setPosition(this.getRowCount() - 1);
 	}
+	
+	this.dispatchEvent(new com.qwirx.data.Cursor.RowEvent(
+		com.qwirx.data.Cursor.Events.MODIFIED, this.getPosition()));
 };
 
 /**
@@ -716,6 +719,8 @@ com.qwirx.data.Cursor.prototype.setFieldValue = function(fieldName,
 	this.assertCurrentRecord();
 	this.assertValidField(fieldName);
 	this.currentRecordValues_[fieldName] = newValue;
+	this.dispatchEvent(new com.qwirx.data.Cursor.RowEvent(
+		com.qwirx.data.Cursor.Events.MODIFIED, this.getPosition()));
 };
 
 /**

@@ -418,18 +418,43 @@ function test_save_on_modified_record_sends_event()
 	assertObjectEquals([], events);
 }
 
-function test_cursor_discard()
+function test_cursor_discard_and_modified_events()
 {
 	var ds = getTestDataSource();
 	var c = new com.qwirx.data.Cursor(ds);
 	c.setPosition(1);
 	
 	assertEquals('James', c.getLoadedValues().name);
-	
-	c.setFieldValue('name', 'Joyce');
+
+	// Test that changing a field value, without saving, sends a 
+	// com.qwirx.data.Cursor.MODIFIED event.
+	com.qwirx.test.assertEvents(c, // target
+		[ // expected_event_types,
+			com.qwirx.data.Cursor.Events.MODIFIED
+		],
+		function() { // eventing_callback
+			c.setFieldValue('name', 'Joyce');
+		},
+		"Modifying a Cursor's current values should send a MODIFIED event",
+		false // opt_continue_if_events_not_sent
+		// opt_eventHandler
+		);
+
 	assertTrue(c.isDirty());
+
+	// Discard also mosifies values, so it should also send a MODIFIED event
+	com.qwirx.test.assertEvents(c, // target
+		[ // expected_event_types,
+			com.qwirx.data.Cursor.Events.MODIFIED
+		],
+		function() { // eventing_callback
+			c.discard();
+		},
+		"Discarding a Cursor's modified values should send a MODIFIED event",
+		false // opt_continue_if_events_not_sent
+		// opt_eventHandler
+		);
 	
-	c.discard();
 	assertFalse(c.isDirty());
 	
 	// discard() used to assign the loaded values instead of copying,
