@@ -815,7 +815,25 @@ com.qwirx.data.Cursor.prototype.getCurrentValues = function()
 /**
  * Write the current record to the {com.qwirx.data.Datasource}. This
  * only makes sense when the cursor is positioned on a current record
- * or at {com.qwirx.data.Cursor.NEW}.
+ * or at {com.qwirx.data.Cursor.NEW}. A
+ * {@link com.qwirx.data.Cursor.Events.SAVE} event will be sent afterwards,
+ * and if the cursor was previously at {com.qwirx.data.Cursor.NEW}, then
+ * it will be moved to the position of the newly created record.
+ * 
+ * If the cursor is positioned on an existing record, it will normally 
+ * check before overwriting it that the record values have not changed 
+ * since it was loaded into the cursor. This protects against concurrent 
+ * modification of the same Datasource (or underlying data source) by 
+ * independent Cursors or other means.
+ * 
+ * If the record has been modified, a
+ * {@link com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE} event will be sent,
+ * and if this event is cancelled, the save method will throw a 
+ * {@link com.qwirx.data.OverwriteBlocked} exception instead of overwriting
+ * the data in the Cursor. If the event is not intercepted or a handler
+ * returns true, then the modified record in the datasource will be
+ * overwritten, and a {@link com.qwirx.data.Cursor.Events.OVERWRITE} event
+ * will be sent.
  * 
  * @param {boolean} opt_suppressMoveToEvent set to true if you want to
  * suppress the automatic MOVE_TO event caused by moving the cursor from
@@ -832,10 +850,16 @@ com.qwirx.data.Cursor.prototype.getCurrentValues = function()
  * and Cursor.getPosition() in this case, as described in
  * {com.qwirx.data.Cursor.RowEvent.prototype#getPosition}.
  * 
+ * @param {boolean} opt_forceOverwrite If set to true, the check for the
+ * record having been concurrently modified in the underlying datasource
+ * will be skipped, and the BEFORE_OVERWRITE and OVERWRITE events will not
+ * be sent.
+ * 
  * @throws {com.qwirx.data.NoCurrentRecord} if the cursor is at
  * {com.qwirx.data.Cursor.BOF} or {com.qwirx.data.Cursor.EOF}.
  */
-com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent)
+com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent,
+	opt_forceOverwrite)
 {
 	this.assertCurrentRecord();
 	var newPosition = this.position_;
@@ -843,6 +867,10 @@ com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent)
 	if (this.position_ == com.qwirx.data.Cursor.NEW)
 	{
 		newPosition = this.dataSource_.add(this.currentRecordValues_);
+	}
+	else if (opt_forceOverwrite)
+	{
+		this.dataSource_.replace(this.position_, this.currentRecordValues_);
 	}
 	else
 	{
@@ -866,8 +894,8 @@ com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent)
 				}
 				else
 				{
-					this.dataSource_.atomicReplace(this.position_,
-						e.getCurrentValues(), this.currentRecordValues_);
+					this.dataSource_.replace(this.position_,
+						this.currentRecordValues_);
 					this.dispatchEvent(
 						new com.qwirx.data.Cursor.RowEvent(
 							com.qwirx.data.Cursor.Events.OVERWRITE,

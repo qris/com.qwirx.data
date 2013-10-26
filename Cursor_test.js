@@ -393,6 +393,29 @@ function test_save_on_modified_record_sends_event()
 		});
 	assertObjectEquals("The underlying object should have been changed",
 		{id: 2, name: 'Jonathan'}, ds.get(1));
+	
+	// create a conflict condition again
+	c1.setFieldValue('name', 'Tudor');
+	c1.save();
+	c2.setFieldValue('name', 'Seagull');
+	assertTrue(c2.isDirty());
+	
+	// Try setting opt_forceSave, which should save the record even if
+	// modified, without sending BEFORE_OVERWRITE or OVERWRITE events.
+	var events = com.qwirx.test.assertEvents(c2,
+		[ // events of interest
+			com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+			com.qwirx.data.Cursor.Events.OVERWRITE
+		],
+		function() { // trigger
+			c2.save(false /* opt_suppressMoveToEvent */,
+				true /* opt_forceOverwrite */);
+		},
+		"opt_forceOverwrite should force the modified record to be saved",
+		true /* opt_continue_if_events_not_sent */);
+	assertObjectEquals("The underlying object should have been changed",
+		{id: 2, name: 'Seagull'}, ds.get(1));
+	assertObjectEquals([], events);
 }
 
 function test_cursor_discard()
