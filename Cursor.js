@@ -257,17 +257,13 @@ com.qwirx.data.Cursor.prototype.assertValidPosition = function(position)
  * was set to an invalid value. In this case, you may wish to handle
  * the exception by resetting the position to {#EOF}.
  *
- * @throws {com.qwirx.data.Cursor.Events.BEFORE_DISCARD} if
+ * @throws {com.qwirx.data.DiscardBlocked} if
  * {com.qwirx.data.Cursor.prototype.maybeDiscard} does.
  */
 com.qwirx.data.Cursor.prototype.setPosition = function(newPosition)
 {
 	this.assertValidPosition(newPosition);
-
-	if (!this.maybeDiscard(newPosition))
-	{
-		return;
-	}
+	this.maybeDiscard(newPosition);
 
 	if (newPosition != this.position_)
 	{
@@ -423,16 +419,9 @@ com.qwirx.data.Cursor.prototype.maybeDiscard = function(opt_newPosition)
 		// exception if the save is cancelled. Callers can
 		// catch it and ignore it if they want.
 		
-		if (event.defaultPrevented)
-		{
-			return false;
-		}
-		else
-		{
-			throw new com.qwirx.data.DiscardBlocked("The cursor points " +
-				"to modified data, and the BEFORE_DISCARD event was " +
-				"cancelled, so the cursor cannot be moved.");
-		}
+		throw new com.qwirx.data.DiscardBlocked("The cursor points " +
+			"to modified data, and the BEFORE_DISCARD event was " +
+			"cancelled, so the cursor cannot be moved.");
 	}
 	
 	this.discard();
@@ -556,11 +545,7 @@ com.qwirx.data.Cursor.prototype.moveRelative = function(numRowsToMove)
 	}
 
 	this.assertValidPosition(newPosition);
-	
-	if (!this.maybeDiscard(newPosition))
-	{
-		return;
-	}
+	this.maybeDiscard(newPosition);
 
 	this.dispatchEvent({
 		type: com.qwirx.data.Cursor.Events.MOVE_FORWARD,
