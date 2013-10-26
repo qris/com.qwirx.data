@@ -394,3 +394,28 @@ function test_save_on_modified_record_sends_event()
 	assertObjectEquals("The underlying object should have been changed",
 		{id: 2, name: 'Jonathan'}, ds.get(1));
 }
+
+function test_cursor_discard()
+{
+	var ds = getTestDataSource();
+	var c = new com.qwirx.data.Cursor(ds);
+	c.setPosition(1);
+	
+	assertEquals('James', c.getLoadedValues().name);
+	
+	c.setFieldValue('name', 'Joyce');
+	assertTrue(c.isDirty());
+	
+	c.discard();
+	assertFalse(c.isDirty());
+	
+	// discard() used to assign the loaded values instead of copying,
+	// which broke the isDirty() method and subsequent atomic saves.
+	
+	c.setFieldValue('name', 'Jocelyn');
+	assertTrue("Making changes to the current values in a Cursor should " +
+		"make it dirty again", c.isDirty());
+	assertEquals('James', c.getLoadedValues().name);
+}
+
+

@@ -453,7 +453,7 @@ com.qwirx.data.Cursor.prototype.discard = function(opt_newPosition)
 		return;
 	}
 	
-	this.currentRecordValues_ = this.currentRecordAsLoaded_;
+	this.currentRecordValues_ = this.getLoadedValues(); // implicit clone
 	this.dispatchEvent(
 		new com.qwirx.data.Cursor.MovementEvent(
 			com.qwirx.data.Cursor.Events.DISCARD,
