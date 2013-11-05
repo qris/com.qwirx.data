@@ -840,6 +840,9 @@ com.qwirx.data.Cursor.prototype.getCurrentValues = function()
  * overwritten, and a {@link com.qwirx.data.Cursor.Events.OVERWRITE} event
  * will be sent.
  * 
+ * If opt_forceOverwrite is true, then we don't check whether the record
+ * was modified underneath, and therefore we don't send an OVERWRITE event.
+ * 
  * @param {boolean} opt_suppressMoveToEvent set to true if you want to
  * suppress the automatic MOVE_TO event caused by moving the cursor from
  * a NEW row to a newly created real row. For example, you might do this
