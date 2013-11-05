@@ -860,11 +860,19 @@ com.qwirx.data.Cursor.prototype.getCurrentValues = function()
  * will be skipped, and the BEFORE_OVERWRITE and OVERWRITE events will not
  * be sent.
  * 
+ * @param {number} opt_attemptedPosition If the save() is part of a movement
+ * process, then pass the new target position. If a BEFORE_OVERWRITE event is
+ * sent, it will be sent as a MovementEvent instead of a RowEvent, and
+ * listeners will be able to discover the target row. Grid uses this to
+ * complete the attempted movement when the user eventually tells us what
+ * to do, by clicking on a button in the dialog. We do not actually complete
+ * the movement ourselves, that's your responsibility!
+ * 
  * @throws {com.qwirx.data.NoCurrentRecord} if the cursor is at
  * {com.qwirx.data.Cursor.BOF} or {com.qwirx.data.Cursor.EOF}.
  */
 com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent,
-	opt_forceOverwrite)
+	opt_forceOverwrite, opt_attemptedPosition)
 {
 	this.assertCurrentRecord();
 	var newPosition = this.position_;
@@ -884,13 +892,25 @@ com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent,
 			this.dataSource_.atomicReplace(this.position_,
 				this.currentRecordAsLoaded_, this.currentRecordValues_);
 		}
-		catch (e)
+		catch (exception)
 		{
-			if (e instanceof com.qwirx.data.ConcurrentModification)
+			if (exception instanceof com.qwirx.data.ConcurrentModification)
 			{
-				var event = new com.qwirx.data.Cursor.RowEvent(
-					com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
-					this.getPosition());
+				var event;
+				
+				if (opt_attemptedPosition !== undefined)
+				{
+					event = new com.qwirx.data.Cursor.MovementEvent(
+						com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+						this.getPosition(), opt_attemptedPosition);
+				}
+				else
+				{
+					event = new com.qwirx.data.Cursor.RowEvent(
+						com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+						this.getPosition());
+				}
+				
 				var cancelled = !this.dispatchEvent(event);
 				
 				if (cancelled)
@@ -909,7 +929,7 @@ com.qwirx.data.Cursor.prototype.save = function(opt_suppressMoveToEvent,
 			}
 			else
 			{
-				throw e;
+				throw exception;
 			}
 		}
 	}

@@ -4,6 +4,7 @@ goog.require('com.qwirx.data.Cursor');
 goog.require('com.qwirx.data.SimpleDatasource');
 goog.require('com.qwirx.test.assertThrows');
 goog.require('com.qwirx.test.findDifferences');
+goog.require('goog.events.EventHandler');
 goog.require('goog.testing.jsunit');
 
 function getTestDataSource()
@@ -330,10 +331,9 @@ function test_illegal_moves_from_dirty_records()
 	com.qwirx.test.assertThrows(com.qwirx.data.IllegalMove,
 		function() { c.setPosition(c.getRowCount()); });
 }
-	
-function test_save_on_modified_record_sends_event()
+
+function setup_dirty_cursor_and_record_modified_underfoot(ds)
 {
-	var ds = getTestDataSource();
 	var c1 = new com.qwirx.data.Cursor(ds);
 	var c2 = new com.qwirx.data.Cursor(ds);
 	
@@ -344,6 +344,14 @@ function test_save_on_modified_record_sends_event()
 	c2.setFieldValue('name', 'Jonathan');
 	
 	c1.save();
+	assertTrue(c2.isDirty());
+	return c2;
+}
+
+function test_save_on_modified_record_sends_event()
+{
+	var ds = getTestDataSource();
+	var c2 = setup_dirty_cursor_and_record_modified_underfoot(ds);
 	
 	function trySave(trigger, events, handler)
 	{
@@ -391,13 +399,84 @@ function test_save_on_modified_record_sends_event()
 			// don't call event.preventDefault();
 			return true;
 		});
+	
+	assertObjectEquals("The underlying object should have been changed",
+		{id: 2, name: 'Jonathan'}, ds.get(1));
+}
+
+function test_save_with_opt_forceSave_overwrites_without_sending_events()
+{
+	var ds = getTestDataSource();
+	var c2 = setup_dirty_cursor_and_record_modified_underfoot(ds);
+	
+	// Try setting opt_forceSave, which should save the record even if
+	// modified, without sending BEFORE_OVERWRITE or OVERWRITE events.
+	var events = com.qwirx.test.assertEvents(c2,
+		[ // events of interest
+			com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+			com.qwirx.data.Cursor.Events.OVERWRITE
+		],
+		function() { // trigger
+			c2.save(false /* opt_suppressMoveToEvent */,
+				true /* opt_forceOverwrite */);
+		},
+		"opt_forceOverwrite should force the modified record to be saved",
+		true /* opt_continue_if_events_not_sent */);
+	
 	assertObjectEquals("The underlying object should have been changed",
 		{id: 2, name: 'Jonathan'}, ds.get(1));
 	
-	// create a conflict condition again
+	assertObjectEquals("No BEFORE_OVERWRITE or OVERWRITE events should " +
+		"have been sent", [], events);
+}
+
+function test_save_with_opt_attemptedPosition_sends_BEFORE_OVERWRITE_as_MovementEvent()
+{
+	var ds = getTestDataSource();
+	var c2 = setup_dirty_cursor_and_record_modified_underfoot(ds);
+	
+	// Try setting opt_attemptedPosition, which should result in
+	// BEFORE_OVERWRITE being sent as a MovementEvent instead of a RowEvent.
+	
+	var events = com.qwirx.test.assertEvents(c2,
+		[ // events of interest
+			com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+		],
+		function() { // trigger
+			c2.save(false /* opt_suppressMoveToEvent */,
+				false /* opt_forceOverwrite */,
+				1234 /* opt_attemptedPosition */
+   				);
+		},
+		"opt_attemptedPosition should result in BEFORE_OVERWRITE being " +
+		"sent as a MovementEvent",
+		true /* opt_continue_if_events_not_sent */,
+		function(event) // opt_eventHandler
+		{
+			assertEquals(com.qwirx.data.Cursor.Events.BEFORE_OVERWRITE,
+				event.type);
+			
+			goog.asserts.assertInstanceof(event,
+				com.qwirx.data.Cursor.MovementEvent,
+				"BEFORE_OVERWRITE events sent by Cursor.save() during a " +
+				"movement should be MovementEvents, not RowEvents.");
+			
+			assertEquals("The new/attempted target position should be " +
+				"stored in BEFORE_DISCARD and BEFORE_OVERWRITE events",
+				1234, event.getNewPosition());
+		});
+	
+	var ds = getTestDataSource();
+	var c1 = new com.qwirx.data.Cursor(ds);
+	var c2 = new com.qwirx.data.Cursor(ds);
+	
+	c1.setPosition(1);
+	c2.setPosition(1);
+
 	c1.setFieldValue('name', 'Tudor');
-	c1.save();
 	c2.setFieldValue('name', 'Seagull');
+	
+	c1.save();
 	assertTrue(c2.isDirty());
 	
 	// Try setting opt_forceSave, which should save the record even if
